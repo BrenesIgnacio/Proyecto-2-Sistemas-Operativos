@@ -1,6 +1,7 @@
 #include "config.h"
 #include <stdio.h>
 
+// Carga parámetros base pensados para una demostración rápida.
 void config_load_defaults(Config *cfg) {
     cfg->seed = 1234;
     cfg->process_count = 10;
@@ -8,6 +9,7 @@ void config_load_defaults(Config *cfg) {
     cfg->algorithm = 1; // por ejemplo FIFO por defecto
 }
 
+// Imprime los valores de configuración activos para depuración.
 void config_print(const Config *cfg) {
     printf("Seed: %u | Processes: %d | Ops: %d | Algorithm: %d\n",
            cfg->seed, cfg->process_count, cfg->op_count, cfg->algorithm);

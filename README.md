@@ -14,7 +14,7 @@ simulador de memoria y estrategias de paginación con interfaz gráfica. Modela 
 - Núcleo de simulación (`sim_engine.c`) para crear/expulsar/cargar páginas y mantener las tablas de RAM/marcos
 - Módulo de algoritmos (`algorithms.c`) con políticas enchufables
 - Analizador de instrucciones (`instr_parser.c`) para cargar un script de trabajo, más un generador aleatorio de instrucciones
-- Capa de orquestación (`sim_manager.c`) para coordinar la simulación (en andamiaje)
+- Capa de orquestación (`sim_manager.c`) precomputa los eventos de acceso y las colas OPT de "next use"; el bucle de avance sigue en andamiaje
 - Andamiaje de UI (`ui_init.c`, `ui_view.c`, `visualization_draw.c`) para mostrar estado y estadísticas
 - Configuración por defecto (`config.c`) para demostraciones rápidas
 
@@ -105,7 +105,7 @@ kill(2)
 ## Algoritmos
 
 Políticas disponibles (ver `include/sim_types.h` y `src/algorithms.c`):
-- OPT (óptimo de Belady, usa colas de usos futuros si se proveen)
+- OPT (óptimo de Belady, emplea las colas precalculadas de usos futuros)
 - FIFO
 - Segunda Oportunidad (Clock)
 - MRU (Most Recently Used)

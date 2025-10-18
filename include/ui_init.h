@@ -13,8 +13,9 @@ typedef struct AppContext {
     SimManager manager;
 } AppContext;
 
+// Inicializa GTK y prepara la estructura principal de la aplicación.
 void ui_init(AppContext *app, int *argc, char ***argv);
-void ui_build_main_window(AppContext *app);
+// Entra al loop principal de GTK para mostrar la interfaz.
 void ui_run(AppContext *app);
 
 #endif

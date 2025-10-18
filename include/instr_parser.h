@@ -17,8 +17,11 @@ typedef struct {
     sim_ptr_t ptr_id;
 } Instruction;
 
+// Lee un archivo de texto y devuelve la lista de instrucciones válidas encontrada.
 Instruction *parse_instructions_from_file(const char *path, size_t *count);
+// Genera una secuencia aleatoria de instrucciones para pruebas controladas.
 Instruction *generate_instructions(int P, int N, unsigned int seed, size_t *count);
+// Guarda una lista de instrucciones en disco usando el formato esperado por el simulador.
 void save_instructions_to_file(const char *path, Instruction *list, size_t n);
 
 #endif

@@ -24,6 +24,27 @@ static void *sim_realloc(void *ptr, size_t size) {
     return tmp;
 }
 
+// Suma el costo temporal de un acceso que encuentra la página en RAM.
+static inline void record_page_hit(Simulator *sim) {
+    if (!sim) {
+        return;
+    }
+    sim->clock += 1;
+    sim->stats.page_hits++;
+}
+
+// Suma el costo temporal de un acceso que requiere swap in y contabiliza thrashing.
+static inline void record_page_fault(Simulator *sim, int account_thrashing) {
+    if (!sim) {
+        return;
+    }
+    sim->clock += 5;
+    sim->stats.page_faults++;
+    if (account_thrashing) {
+        sim->thrashing_time += 5;
+    }
+}
+
 // Marca todos los marcos como libres y rellena la pila de disponibles.
 static void mmu_initialize_frames(MMU *mmu) {
     mmu->free_count = 0;
@@ -372,6 +393,28 @@ static PtrMap *create_ptrmap(Simulator *sim, Process *proc, sim_ptr_t ptr_id, si
     return ptr;
 }
 
+static void load_future_use_data(Simulator *sim, Page *page) {
+    if (!sim || !page || !sim->future_dataset || !sim->future_dataset->entries) {
+        return;
+    }
+    if (page->id >= sim->future_dataset->capacity) {
+        return;
+    }
+    const FutureUseEntry *entry = &sim->future_dataset->entries[page->id];
+    if (!entry || entry->count == 0 || !entry->positions) {
+        page->future_uses = (FutureUseQueue){0};
+        page->next_use_pos = SIZE_MAX;
+        return;
+    }
+
+    page->future_uses.positions = xmalloc(entry->count * sizeof(size_t));
+    memcpy(page->future_uses.positions, entry->positions, entry->count * sizeof(size_t));
+    page->future_uses.count = entry->count;
+    page->future_uses.capacity = entry->count;
+    page->future_uses.cursor = 0;
+    page->next_use_pos = entry->positions[0];
+}
+
 // Construye una página virtual y la registra en la tabla global del MMU.
 static Page *create_page(Simulator *sim, sim_pid_t owner_pid, sim_ptr_t owner_ptr, uint32_t page_index) {
     Page *page = xmalloc(sizeof(*page));
@@ -386,11 +429,10 @@ static Page *create_page(Simulator *sim, sim_pid_t owner_pid, sim_ptr_t owner_pt
     page->dirty = 0;
     page->last_used = 0;
     page->next_use_pos = SIZE_MAX;
-    page->future_uses = (FutureUseQueue){0};
-
     mmu_ensure_page_capacity(&sim->mmu, page->id);
     sim->mmu.pages[page->id] = page;
     sim->mmu.page_count++;
+    load_future_use_data(sim, page);
     return page;
 }
 
@@ -520,12 +562,9 @@ static void handle_new(Simulator *sim, const Instruction *ins) {
         }
 
         if (was_fault) {
-            sim->clock += 5;
-            sim->thrashing_time += 5;
-            sim->stats.page_faults++;
+            record_page_fault(sim, 1);
         } else {
-            sim->clock += 1;
-            sim->stats.page_hits++;
+            record_page_hit(sim);
         }
 
         place_page_in_frame(sim, page, frame_index);
@@ -549,8 +588,7 @@ static void handle_use(Simulator *sim, const Instruction *ins) {
         }
 
         if (page->in_ram) {
-            sim->clock += 1;
-            sim->stats.page_hits++;
+            record_page_hit(sim);
             page->last_used = sim->clock;
             page->ref_bit = 1;
             algorithms_on_page_accessed(sim, page);
@@ -566,9 +604,7 @@ static void handle_use(Simulator *sim, const Instruction *ins) {
                 sim->total_pages_in_swap--;
             }
 
-            sim->clock += 5;
-            sim->thrashing_time += 5;
-            sim->stats.page_faults++;
+            record_page_fault(sim, 1);
 
             place_page_in_frame(sim, page, frame_index);
             algorithms_on_page_accessed(sim, page);
@@ -620,6 +656,7 @@ void sim_init(Simulator *sim, const char *name, AlgorithmType type) {
     sim->next_page_id = 1;
     sim->next_ptr_id = 1;
     sim->rng_seed = 0;
+    sim->future_dataset = NULL;
 
     mmu_initialize_frames(&sim->mmu);
     algorithms_init(sim);
@@ -634,6 +671,13 @@ void sim_reset(Simulator *sim) {
 void sim_free(Simulator *sim) {
     sim_clear_state(sim, 1);
     algorithms_free(sim);
+}
+
+void sim_set_future_dataset(Simulator *sim, const FutureUseDataset *dataset) {
+    if (!sim) {
+        return;
+    }
+    sim->future_dataset = dataset;
 }
 
 // Ejecuta una instrucción del flujo global actualizando estadísticas.

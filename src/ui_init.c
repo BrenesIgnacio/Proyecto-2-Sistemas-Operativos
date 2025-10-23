@@ -1,8 +1,12 @@
 #include "ui_init.h"
 
+#include <string.h>
+
 // Arranca GTK y deja lista la estructura de contexto de la aplicación.
 void ui_init(AppContext *app, int *argc, char ***argv) {
-    (void)app;
+    if (app) {
+        memset(app, 0, sizeof(*app));
+    }
     gtk_init(argc, argv);
 }
 

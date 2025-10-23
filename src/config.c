@@ -6,7 +6,7 @@ void config_load_defaults(Config *cfg) {
     cfg->seed = 1234;
     cfg->process_count = 10;
     cfg->op_count = 500;
-    cfg->algorithm = 1; // por ejemplo FIFO por defecto
+    cfg->algorithm = 1; //FIFO por defecto
 }
 
 // Imprime los valores de configuración activos para depuración.

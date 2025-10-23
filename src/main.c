@@ -7,5 +7,13 @@ int main(int argc, char **argv) {
     ui_init(&app, &argc, &argv);
     ui_view_build_main_window(&app);
     ui_run(&app);
+    if (app.tick_source) {
+        g_source_remove(app.tick_source);
+        app.tick_source = 0;
+    }
+    sim_manager_free(&app.manager);
+    free(app.instructions);
+    app.instructions = NULL;
+    app.instruction_count = 0;
     return 0;
 }

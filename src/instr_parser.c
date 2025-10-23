@@ -326,7 +326,7 @@ Instruction *generate_instructions(int P, int N, unsigned int seed, size_t *coun
     sim_ptr_t next_ptr_id = 0;
     int operations_remaining = (N > 0) ? N : 0;
 
-    /* Ensure each process gets an initial allocation when possible */
+    // Asegura que cada proceso obtenga una asignación inicial cuando sea posible
     for (int pid = 1; pid <= P && operations_remaining > 0; ++pid) {
         Instruction instr = {0};
         instr.type = INS_NEW;
@@ -377,7 +377,7 @@ Instruction *generate_instructions(int P, int N, unsigned int seed, size_t *coun
             instr.ptr_id = ptr_id;
             process_remove_ptr(proc, slot);
         } else {
-            /* Volvemos a asignar memoria si ninguna acción previa fue válida */
+            // Volvemos a asignar memoria si ninguna acción previa fue válida
             instr.type = INS_NEW;
             instr.pid = (sim_pid_t)pid;
             instr.size = (size_t)random_int(1, 20000);

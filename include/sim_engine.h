@@ -12,5 +12,6 @@ void sim_reset(Simulator *sim);
 void sim_free(Simulator *sim);
 // Ejecuta una instrucción y actualiza el estado y métricas de la simulación.
 void sim_process_instruction(Simulator *sim, const Instruction *ins, int global_index);
+void sim_set_future_dataset(Simulator *sim, const FutureUseDataset *dataset);
 
 #endif

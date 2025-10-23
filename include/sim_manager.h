@@ -3,14 +3,25 @@
 
 #include "sim_types.h"
 #include "instr_parser.h"
+typedef struct AccessEvent {
+    size_t instruction_index;
+    sim_pageid_t page_id;
+} AccessEvent;
 
 typedef struct SimManager {
     Simulator *sim_opt;
     Simulator *sim_user;
     Instruction *instructions;
     size_t instr_count;
-    int current_index;
+    size_t current_index;
+    size_t current_event_index;
     int running;
+    AlgorithmType user_algorithm;
+    AccessEvent *events;
+    size_t event_count;
+    size_t event_capacity;
+    size_t *instr_event_offsets;
+    FutureUseDataset future_dataset;
 } SimManager;
 
 // Configura el administrador con las instrucciones cargadas y el algoritmo del usuario.

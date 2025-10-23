@@ -4,11 +4,22 @@
 #include "common.h"
 
 typedef struct FutureUseQueue {
-    size_t *positions;       // absolute event indices where this page will be used
-    size_t count;            // total recorded future uses
-    size_t capacity;         // storage capacity for positions
-    size_t cursor;           // next future use index (relative to positions array)
+    size_t *positions;       // índices de eventos absolutos donde se usará esta página
+    size_t count;            // total de usos futuros registrados
+    size_t capacity;         // capacidad de almacenamiento para posiciones
+    size_t cursor;           // índice del próximo uso futuro (relativo al array de posiciones)
 } FutureUseQueue;
+
+typedef struct FutureUseEntry {
+    size_t *positions;       // lista inmutable de índices de acceso futuro para una página
+    size_t count;
+    size_t capacity;
+} FutureUseEntry;
+
+typedef struct FutureUseDataset {
+    FutureUseEntry *entries;
+    size_t capacity;
+} FutureUseDataset;
 
 typedef struct Page {
     sim_pageid_t id;
@@ -20,7 +31,7 @@ typedef struct Page {
     int ref_bit;
     int dirty;
     sim_time_t last_used;
-    size_t next_use_pos;     // cached absolute event index for OPT (SIZE_MAX if none)
+    size_t next_use_pos;     // índice de evento absoluto en caché para OPT (SIZE_MAX si no hay)
     FutureUseQueue future_uses;
 } Page;
 
@@ -93,6 +104,7 @@ typedef struct Simulator {
     sim_ptr_t next_ptr_id;
     size_t internal_fragmentation_bytes;
     unsigned int rng_seed;
+    const FutureUseDataset *future_dataset;
 } Simulator;
 
 #endif

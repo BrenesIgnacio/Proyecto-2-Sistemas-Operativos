@@ -52,6 +52,20 @@ void on_save_instructions_clicked(GtkButton *button, gpointer user_data);
 void on_generate_instructions_clicked(GtkButton *button, gpointer user_data);
 void on_start_simulation_clicked(GtkButton *button, gpointer user_data);
 
+static void disconnect_bars(AppContext *app)
+{
+    if (!app || !app->root_box)
+        return;
+
+    GtkWidget *opt_bar = g_object_get_data(G_OBJECT(app->root_box), "opt_bar");
+    GtkWidget *user_bar = g_object_get_data(G_OBJECT(app->root_box), "user_bar");
+
+    if (opt_bar)
+        g_signal_handlers_disconnect_by_func(opt_bar, G_CALLBACK(draw_ram_bar_cb), app->manager.sim_opt);
+    if (user_bar)
+        g_signal_handlers_disconnect_by_func(user_bar, G_CALLBACK(draw_ram_bar_cb), app->manager.sim_user);
+}
+
 // Construye la barra superior con título y subtítulo.
 static GtkWidget *create_header_bar(void)
 {
@@ -171,6 +185,21 @@ static gboolean refresh_stats_idle(gpointer user_data)
     {
         update_stats_labels(app->user_stats_box, app->manager.sim_user);
         update_visual_stats(app->user_stats_box, app->manager.sim_user);
+    }
+
+    GtkWidget *tables_box = g_object_get_data(G_OBJECT(app->root_box), "tables_box");
+    if (tables_box)
+    {
+        GList *children = gtk_container_get_children(GTK_CONTAINER(tables_box));
+        for (GList *l = children; l != NULL; l = l->next)
+            gtk_widget_destroy(GTK_WIDGET(l->data));
+        g_list_free(children);
+
+        GtkWidget *opt_table = create_page_table(app->manager.sim_opt);
+        GtkWidget *user_table = create_page_table(app->manager.sim_user);
+        gtk_box_pack_start(GTK_BOX(tables_box), opt_table, TRUE, TRUE, 0);
+        gtk_box_pack_start(GTK_BOX(tables_box), user_table, TRUE, TRUE, 0);
+        gtk_widget_show_all(tables_box);
     }
 
     gtk_widget_queue_draw(app->root_box);
@@ -362,9 +391,8 @@ static void update_status_progress(AppContext *app, const char *prefix, size_t c
 static gboolean ensure_manager_config(AppContext *app, AlgorithmType alg, gboolean reset_position)
 {
     if (!app)
-    {
         return FALSE;
-    }
+
     if (!app->instructions || app->instruction_count == 0)
     {
         update_status(app, "Primero genera una carga de trabajo.");
@@ -377,20 +405,31 @@ static gboolean ensure_manager_config(AppContext *app, AlgorithmType alg, gboole
         needs_reset = TRUE;
     }
     else if (app->manager.instructions != app->instructions ||
-             app->manager.instr_count != app->instruction_count)
-    {
-        needs_reset = TRUE;
-    }
-    else if (app->manager.user_algorithm != alg)
+             app->manager.instr_count != app->instruction_count ||
+             app->manager.user_algorithm != alg)
     {
         needs_reset = TRUE;
     }
 
     if (needs_reset)
     {
+        disconnect_bars(app);
         sim_manager_free(&app->manager);
+        app->manager.sim_opt = NULL;
+        app->manager.sim_user = NULL;
+
         sim_manager_init(&app->manager, app->instructions, app->instruction_count, alg);
         app->manager.running = 0;
+
+        // Reconectar barras a los nuevos simuladores
+        GtkWidget *opt_bar = g_object_get_data(G_OBJECT(app->root_box), "opt_bar");
+        GtkWidget *user_bar = g_object_get_data(G_OBJECT(app->root_box), "user_bar");
+        if (opt_bar && user_bar)
+        {
+            g_signal_connect(opt_bar, "draw", G_CALLBACK(draw_ram_bar_cb), app->manager.sim_opt);
+            g_signal_connect(user_bar, "draw", G_CALLBACK(draw_ram_bar_cb), app->manager.sim_user);
+        }
+
         refresh_stats(app);
         set_run_state(app, RUN_STATE_IDLE);
     }
@@ -446,13 +485,14 @@ static void on_generate_clicked(GtkButton *button, gpointer user_data)
     (void)button;
     AppContext *app = user_data;
     if (!app)
-    {
         return;
-    }
 
     stop_simulation_timer(app);
+    disconnect_bars(app);
     app->manager.running = 0;
     sim_manager_free(&app->manager);
+    app->manager.sim_opt = NULL;
+    app->manager.sim_user = NULL;
     set_run_state(app, RUN_STATE_IDLE);
 
     free(app->instructions);
@@ -471,6 +511,16 @@ static void on_generate_clicked(GtkButton *button, gpointer user_data)
 
     app->instructions = list;
     app->instruction_count = count;
+
+    // Reasignar simuladores y señales de barra
+    sim_manager_init(&app->manager, app->instructions, app->instruction_count, app->manager.user_algorithm);
+    GtkWidget *opt_bar = g_object_get_data(G_OBJECT(app->root_box), "opt_bar");
+    GtkWidget *user_bar = g_object_get_data(G_OBJECT(app->root_box), "user_bar");
+    if (opt_bar && user_bar)
+    {
+        g_signal_connect(opt_bar, "draw", G_CALLBACK(draw_ram_bar_cb), app->manager.sim_opt);
+        g_signal_connect(user_bar, "draw", G_CALLBACK(draw_ram_bar_cb), app->manager.sim_user);
+    }
 
     update_status(app, "Carga generada: %zu instrucciones (seed %u).", count, app->seed);
     refresh_stats(app);
@@ -686,6 +736,16 @@ void ui_view_build_simulation_window(AppContext *app)
     gtk_widget_set_size_request(user_bar, -1, 32);
     gtk_box_pack_start(GTK_BOX(sim_box), user_bar, FALSE, FALSE, 0);
     g_object_set_data(G_OBJECT(app->root_box), "user_bar", user_bar);
+
+    // Tablas de páginas
+    GtkWidget *tables_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
+    gtk_box_pack_start(GTK_BOX(sim_box), tables_box, TRUE, TRUE, 0);
+    g_object_set_data(G_OBJECT(app->root_box), "tables_box", tables_box);
+
+    GtkWidget *opt_table = create_page_table(app->manager.sim_opt);
+    GtkWidget *user_table = create_page_table(app->manager.sim_user);
+    gtk_box_pack_start(GTK_BOX(tables_box), opt_table, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(tables_box), user_table, TRUE, TRUE, 0);
 
     // Paneles de estadísticas
     GtkWidget *panels = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
@@ -914,11 +974,12 @@ void on_load_instructions_clicked(GtkButton *button, gpointer user_data)
     free(app->instructions);
     app->instructions = list;
     app->instruction_count = count;
-
     app->process_count = calculate_process_count(list, count);
     app->operation_count = (int)count;
+
+    // Obtener seed del entry o valor por defecto
     GtkWidget *entry_seed = g_object_get_data(G_OBJECT(dialog), "entry_seed");
-    unsigned int seed = 1234; // valor por defecto
+    unsigned int seed = 1234;
     if (entry_seed)
     {
         const char *seed_text = gtk_entry_get_text(GTK_ENTRY(entry_seed));
@@ -926,16 +987,30 @@ void on_load_instructions_clicked(GtkButton *button, gpointer user_data)
             seed = (unsigned int)atoi(seed_text);
     }
     app->seed = seed;
-    // Reinicia el simulador con la nueva carga
+
+    // Reconstruir simuladores de forma segura
+    disconnect_bars(app);
     sim_manager_free(&app->manager);
+    app->manager.sim_opt = NULL;
+    app->manager.sim_user = NULL;
     sim_manager_init(&app->manager, app->instructions, app->instruction_count, app->manager.user_algorithm);
     app->manager.running = 0;
+
+    // Reconectar barras
+    GtkWidget *opt_bar = g_object_get_data(G_OBJECT(app->root_box), "opt_bar");
+    GtkWidget *user_bar = g_object_get_data(G_OBJECT(app->root_box), "user_bar");
+    if (opt_bar && user_bar)
+    {
+        g_signal_connect(opt_bar, "draw", G_CALLBACK(draw_ram_bar_cb), app->manager.sim_opt);
+        g_signal_connect(user_bar, "draw", G_CALLBACK(draw_ram_bar_cb), app->manager.sim_user);
+    }
+
     refresh_stats(app);
     set_run_state(app, RUN_STATE_IDLE);
 
     GtkWidget *msg = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_INFO,
                                             GTK_BUTTONS_OK,
-                                            "Se cargaron %zu instrucciones correctamente.", count);
+                                            "Se cargaron %zu instrucciones (seed %u).", count, seed);
     gtk_dialog_run(GTK_DIALOG(msg));
     gtk_widget_destroy(msg);
 }

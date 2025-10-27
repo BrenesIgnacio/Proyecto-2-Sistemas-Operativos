@@ -10,5 +10,6 @@ gboolean draw_ram_cb(GtkWidget *widget, cairo_t *cr, gpointer user_data);
 void update_stats_labels(GtkWidget *container, const Simulator *sim);
 gboolean draw_ram_bar_cb(GtkWidget *widget, cairo_t *cr, gpointer user_data);
 void update_visual_stats(GtkWidget *container, const Simulator *sim);
-
+void pid_to_color(sim_pid_t pid, double *r, double *g, double *b);
+GtkWidget *create_page_table(const Simulator *sim);
 #endif

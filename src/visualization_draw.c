@@ -13,8 +13,7 @@ static void set_label(GtkWidget *container, const char *key, const char *value);
 static void set_label_fmt(GtkWidget *container, const char *key, const char *fmt, ...);
 static const char *algorithm_name(AlgorithmType type);
 
-// Dibuja el estado visual de la RAM en el canvas.
-gboolean draw_ram_cb(GtkWidget *widget, cairo_t *cr, gpointer user_data)
+gboolean draw_ram_bar_cb(GtkWidget *widget, cairo_t *cr, gpointer user_data)
 {
     Simulator *sim = (Simulator *)user_data;
     if (!sim)
@@ -22,52 +21,84 @@ gboolean draw_ram_cb(GtkWidget *widget, cairo_t *cr, gpointer user_data)
 
     double w = gtk_widget_get_allocated_width(widget);
     double h = gtk_widget_get_allocated_height(widget);
-    double cw = w / RAM_COLS;
-    double ch = h / RAM_ROWS;
+    if (w <= 0 || h <= 0)
+        return FALSE;
 
-    cairo_set_font_size(cr, 10);
+    double cw = w / (double)RAM_FRAMES;
+    cairo_set_font_size(cr, fmax(8.0, h * 0.4));
 
     for (int i = 0; i < RAM_FRAMES; ++i)
     {
-        int r = i / RAM_COLS;
-        int c = i % RAM_COLS;
-        double x = c * cw;
-        double y = r * ch;
-
+        double x = i * cw;
+        double y = 0;
         Frame *f = &sim->mmu.frames[i];
 
-        // Fondo
         if (f->occupied)
         {
-            // Colorear según el pid del propietario
+            // color según PID (o page_id si lo prefieres)
             double hue = (f->page_id % 15) / 15.0;
-            double rC = 0.5 + 0.5 * sin(6.28 * hue);
-            double gC = 0.5 + 0.5 * sin(6.28 * (hue + 0.33));
-            double bC = 0.5 + 0.5 * sin(6.28 * (hue + 0.66));
+            double rC = 0.45 + 0.45 * sin(6.28 * hue);
+            double gC = 0.45 + 0.45 * sin(6.28 * (hue + 0.33));
+            double bC = 0.45 + 0.45 * sin(6.28 * (hue + 0.66));
             cairo_set_source_rgb(cr, rC, gC, bC);
         }
         else
         {
-            cairo_set_source_rgb(cr, 0.9, 0.9, 0.9);
+            cairo_set_source_rgb(cr, 0.92, 0.92, 0.92);
         }
 
-        cairo_rectangle(cr, x + 1, y + 1, cw - 2, ch - 2);
-        cairo_fill_preserve(cr);
-        cairo_set_source_rgb(cr, 0.3, 0.3, 0.3);
-        cairo_stroke(cr);
-
-        // Texto (page_id)
-        if (f->occupied)
-        {
-            char buf[32];
-            snprintf(buf, sizeof(buf), "%u", f->page_id);
-            cairo_set_source_rgb(cr, 0, 0, 0);
-            cairo_move_to(cr, x + 4, y + 12);
-            cairo_show_text(cr, buf);
-        }
+        cairo_rectangle(cr, x, y, cw, h);
+        cairo_fill(cr);
     }
 
     return FALSE;
+}
+
+void update_visual_stats(GtkWidget *container, const Simulator *sim)
+{
+    if (!container || !sim)
+        return;
+
+    char buf[64];
+
+    double ram_kb = sim->mmu.page_count * (PAGE_SIZE / 1024.0);
+    double ram_total_kb = (RAM_FRAMES * PAGE_SIZE) / 1024.0;
+    double ram_percent = (ram_kb / ram_total_kb) * 100.0;
+
+    double vram_kb = sim->total_pages_in_swap * (PAGE_SIZE / 1024.0);
+    double vram_percent = ram_total_kb > 0 ? (vram_kb / ram_total_kb) * 100.0 : 0.0;
+
+    double thrash_percent = (sim->clock > 0) ? ((double)sim->thrashing_time / sim->clock) * 100.0 : 0.0;
+
+    set_label_fmt(container, "stat::processes", "%zu", sim->process_count);
+    set_label_fmt(container, "stat::clock", "%llu", (unsigned long long)sim->clock);
+
+    snprintf(buf, sizeof(buf), "%.1f KB (%.1f%%)", ram_kb, ram_percent);
+    set_label(container, "stat::ram", buf);
+
+    snprintf(buf, sizeof(buf), "%.1f KB (%.1f%%)", vram_kb, vram_percent);
+    set_label(container, "stat::vram", buf);
+
+    set_label_fmt(container, "stat::loaded", "%zu", sim->stats.page_hits);
+    set_label_fmt(container, "stat::unloaded", "%zu", sim->stats.page_faults);
+
+    // thrashing con color
+    GtkWidget *thr_label = lookup_label(container, "stat::thrashing");
+    if (thr_label)
+    {
+        char thr_text[64];
+        snprintf(thr_text, sizeof(thr_text), "%llu (%.1f%%)",
+                 (unsigned long long)sim->thrashing_time, thrash_percent);
+        gtk_label_set_text(GTK_LABEL(thr_label), thr_text);
+
+        if (thrash_percent > 50.0)
+            gtk_widget_override_color(thr_label, GTK_STATE_FLAG_NORMAL, &(GdkRGBA){1, 0, 0, 1});
+        else
+            gtk_widget_override_color(thr_label, GTK_STATE_FLAG_NORMAL, NULL);
+    }
+
+    snprintf(buf, sizeof(buf), "%zu B", sim->internal_fragmentation_bytes);
+    set_label(container, "stat::fragment", buf);
 }
 
 static GtkWidget *lookup_label(GtkWidget *container, const char *key)

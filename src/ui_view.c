@@ -17,20 +17,14 @@ typedef struct
 } StatRowDesc;
 
 static const StatRowDesc kStatRows[] = {
-    {"Simulator", "stat::name"},
-    {"Algorithm", "stat::algorithm"},
-    {"Clock", "stat::clock"},
-    {"Thrashing Time", "stat::thrashing"},
-    {"Pages in Swap", "stat::swap"},
-    {"Instructions", "stat::total_instr"},
-    {"Page Faults", "stat::faults"},
-    {"Page Hits", "stat::hits"},
-    {"Pages Created", "stat::pages_created"},
-    {"Pages Evicted", "stat::evicted"},
-    {"Ptr Allocations", "stat::ptr_alloc"},
-    {"Ptr Deletions", "stat::ptr_delete"},
-    {"Bytes Requested", "stat::bytes"},
-    {"Internal Fragmentation", "stat::fragment"}};
+    {"Processes", "stat::processes"},
+    {"Sim Time", "stat::clock"},
+    {"RAM Usage", "stat::ram"},
+    {"V-RAM Usage", "stat::vram"},
+    {"Loaded Pages", "stat::loaded"},
+    {"Unloaded Pages", "stat::unloaded"},
+    {"Thrashing", "stat::thrashing"},
+    {"Fragmentación Interna", "stat::fragment"}};
 
 static GtkWidget *create_header_bar(void);
 static GtkWidget *create_stats_grid(void);
@@ -168,6 +162,17 @@ static gboolean refresh_stats_idle(gpointer user_data)
     {
         update_stats_labels(app->user_stats_box, app->manager.sim_user);
     }
+    if (app->opt_stats_box)
+    {
+        update_stats_labels(app->opt_stats_box, app->manager.sim_opt);
+        update_visual_stats(app->opt_stats_box, app->manager.sim_opt);
+    }
+    if (app->user_stats_box)
+    {
+        update_stats_labels(app->user_stats_box, app->manager.sim_user);
+        update_visual_stats(app->user_stats_box, app->manager.sim_user);
+    }
+
     gtk_widget_queue_draw(app->root_box);
     return G_SOURCE_REMOVE;
 }
@@ -667,34 +672,38 @@ void ui_view_build_simulation_window(AppContext *app)
     if (!app || !app->root_box)
         return;
 
+    GtkWidget *sim_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+    gtk_box_pack_start(GTK_BOX(app->root_box), sim_box, TRUE, TRUE, 0);
+
+    // Barra de RAM OPT
+    GtkWidget *opt_bar = gtk_drawing_area_new();
+    gtk_widget_set_size_request(opt_bar, -1, 32);
+    gtk_box_pack_start(GTK_BOX(sim_box), opt_bar, FALSE, FALSE, 0);
+    g_object_set_data(G_OBJECT(app->root_box), "opt_bar", opt_bar);
+
+    // Barra de RAM USER
+    GtkWidget *user_bar = gtk_drawing_area_new();
+    gtk_widget_set_size_request(user_bar, -1, 32);
+    gtk_box_pack_start(GTK_BOX(sim_box), user_bar, FALSE, FALSE, 0);
+    g_object_set_data(G_OBJECT(app->root_box), "user_bar", user_bar);
+
+    // Paneles de estadísticas
     GtkWidget *panels = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
-    gtk_box_pack_start(GTK_BOX(app->root_box), panels, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(sim_box), panels, TRUE, TRUE, 0);
 
-    // Frame OPT
     GtkWidget *opt_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
-    GtkWidget *opt_canvas = gtk_drawing_area_new();
-    gtk_widget_set_size_request(opt_canvas, 400, 400);
-    gtk_box_pack_start(GTK_BOX(opt_vbox), opt_canvas, TRUE, TRUE, 0);
-
     GtkWidget *opt_frame = create_stats_frame("OPT (Base)", &app->opt_stats_box);
-    gtk_box_pack_start(GTK_BOX(opt_vbox), opt_frame, FALSE, FALSE, 0);
-
+    gtk_box_pack_start(GTK_BOX(opt_vbox), opt_frame, TRUE, TRUE, 0);
     gtk_box_pack_start(GTK_BOX(panels), opt_vbox, TRUE, TRUE, 0);
 
-    // Frame Algoritmo usuario
     GtkWidget *user_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
-    GtkWidget *user_canvas = gtk_drawing_area_new();
-    gtk_widget_set_size_request(user_canvas, 400, 400);
-    gtk_box_pack_start(GTK_BOX(user_vbox), user_canvas, TRUE, TRUE, 0);
-
     GtkWidget *user_frame = create_stats_frame("Algoritmo Usuario", &app->user_stats_box);
-    gtk_box_pack_start(GTK_BOX(user_vbox), user_frame, FALSE, FALSE, 0);
-
+    gtk_box_pack_start(GTK_BOX(user_vbox), user_frame, TRUE, TRUE, 0);
     gtk_box_pack_start(GTK_BOX(panels), user_vbox, TRUE, TRUE, 0);
 
-    // Conecta señales de dibujo
-    g_signal_connect(opt_canvas, "draw", G_CALLBACK(draw_ram_cb), app->manager.sim_opt);
-    g_signal_connect(user_canvas, "draw", G_CALLBACK(draw_ram_cb), app->manager.sim_user);
+    // Conectar señales de dibujo
+    g_signal_connect(opt_bar, "draw", G_CALLBACK(draw_ram_bar_cb), app->manager.sim_opt);
+    g_signal_connect(user_bar, "draw", G_CALLBACK(draw_ram_bar_cb), app->manager.sim_user);
 }
 
 void ui_view_build_setup_window(AppContext *app)
@@ -936,18 +945,71 @@ void on_start_simulation_clicked(GtkButton *button, gpointer user_data)
     (void)button;
 
     GtkWidget *dialog = GTK_WIDGET(user_data);
+    if (!GTK_IS_WIDGET(dialog))
+        return;
+
     AppContext *app = g_object_get_data(G_OBJECT(dialog), "app");
+    if (!app)
+        return;
+
+    // Verifica que haya instrucciones cargadas o generadas
     if (!app->instructions || app->instruction_count == 0)
     {
-        GtkWidget *err = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR,
-                                                GTK_BUTTONS_OK,
-                                                "Primero debes generar o cargar instrucciones antes de iniciar la simulación.");
+        GtkWidget *err = gtk_message_dialog_new(
+            GTK_WINDOW(dialog),
+            GTK_DIALOG_MODAL,
+            GTK_MESSAGE_ERROR,
+            GTK_BUTTONS_OK,
+            "Primero debes generar o cargar instrucciones antes de iniciar la simulación.");
         gtk_dialog_run(GTK_DIALOG(err));
         gtk_widget_destroy(err);
         return;
     }
-    // Lanza la ventana principal
-    ui_view_build_main_window(app);
-    gtk_widget_show_all(app->main_window);
-    gtk_widget_destroy(dialog);
+
+    if (!app->manager.sim_opt || !app->manager.sim_user)
+    {
+        AlgorithmType alg = ALG_FIFO;
+        sim_manager_free(&app->manager);
+        sim_manager_init(&app->manager, app->instructions, app->instruction_count, alg);
+        app->manager.running = 0;
+    }
+
+    // Construye o reconstruye la ventana principal
+    if (!app->main_window)
+    {
+        ui_view_build_main_window(app);
+    }
+    else if (!app->root_box)
+    {
+        sim_manager_free(&app->manager);
+        ui_view_build_main_window(app);
+    }
+
+    // Asegurar que las barras existen
+    GtkWidget *existing_opt = g_object_get_data(G_OBJECT(app->root_box), "opt_bar");
+    GtkWidget *existing_user = g_object_get_data(G_OBJECT(app->root_box), "user_bar");
+    if (!existing_opt || !existing_user)
+    {
+        ui_view_build_simulation_window(app);
+    }
+
+    GtkWidget *opt_bar = g_object_get_data(G_OBJECT(app->root_box), "opt_bar");
+    GtkWidget *user_bar = g_object_get_data(G_OBJECT(app->root_box), "user_bar");
+    if (opt_bar && user_bar)
+    {
+        g_signal_connect(opt_bar, "draw", G_CALLBACK(draw_ram_bar_cb), app->manager.sim_opt);
+        g_signal_connect(user_bar, "draw", G_CALLBACK(draw_ram_bar_cb), app->manager.sim_user);
+    }
+
+    // Mostrar la ventana principal
+    if (GTK_IS_WIDGET(app->main_window))
+    {
+        gtk_widget_show_all(app->main_window);
+    }
+
+    // Destruir el diálogo de setup
+    if (GTK_IS_WIDGET(dialog))
+    {
+        gtk_widget_destroy(dialog);
+    }
 }

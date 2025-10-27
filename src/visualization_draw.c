@@ -1,6 +1,12 @@
 #include "visualization_draw.h"
 
 #include <stdarg.h>
+#include <cairo.h>
+#include <math.h>
+#include <stdio.h>
+
+#define RAM_COLS 10
+#define RAM_ROWS 10
 
 static GtkWidget *lookup_label(GtkWidget *container, const char *key);
 static void set_label(GtkWidget *container, const char *key, const char *value);
@@ -8,39 +14,96 @@ static void set_label_fmt(GtkWidget *container, const char *key, const char *fmt
 static const char *algorithm_name(AlgorithmType type);
 
 // Dibuja el estado visual de la RAM en el canvas.
-gboolean draw_ram_cb(GtkWidget *widget, cairo_t *cr, gpointer user_data) {
-    (void)widget;
-    (void)cr;
-    (void)user_data;
+gboolean draw_ram_cb(GtkWidget *widget, cairo_t *cr, gpointer user_data)
+{
+    Simulator *sim = (Simulator *)user_data;
+    if (!sim)
+        return FALSE;
+
+    double w = gtk_widget_get_allocated_width(widget);
+    double h = gtk_widget_get_allocated_height(widget);
+    double cw = w / RAM_COLS;
+    double ch = h / RAM_ROWS;
+
+    cairo_set_font_size(cr, 10);
+
+    for (int i = 0; i < RAM_FRAMES; ++i)
+    {
+        int r = i / RAM_COLS;
+        int c = i % RAM_COLS;
+        double x = c * cw;
+        double y = r * ch;
+
+        Frame *f = &sim->mmu.frames[i];
+
+        // Fondo
+        if (f->occupied)
+        {
+            // Colorear según el pid del propietario
+            double hue = (f->page_id % 15) / 15.0;
+            double rC = 0.5 + 0.5 * sin(6.28 * hue);
+            double gC = 0.5 + 0.5 * sin(6.28 * (hue + 0.33));
+            double bC = 0.5 + 0.5 * sin(6.28 * (hue + 0.66));
+            cairo_set_source_rgb(cr, rC, gC, bC);
+        }
+        else
+        {
+            cairo_set_source_rgb(cr, 0.9, 0.9, 0.9);
+        }
+
+        cairo_rectangle(cr, x + 1, y + 1, cw - 2, ch - 2);
+        cairo_fill_preserve(cr);
+        cairo_set_source_rgb(cr, 0.3, 0.3, 0.3);
+        cairo_stroke(cr);
+
+        // Texto (page_id)
+        if (f->occupied)
+        {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%u", f->page_id);
+            cairo_set_source_rgb(cr, 0, 0, 0);
+            cairo_move_to(cr, x + 4, y + 12);
+            cairo_show_text(cr, buf);
+        }
+    }
+
     return FALSE;
 }
 
-static GtkWidget *lookup_label(GtkWidget *container, const char *key) {
-    if (!container || !GTK_IS_WIDGET(container) || !key) {
+static GtkWidget *lookup_label(GtkWidget *container, const char *key)
+{
+    if (!container || !GTK_IS_WIDGET(container) || !key)
+    {
         return NULL;
     }
     gpointer stored = g_object_get_data(G_OBJECT(container), key);
-    if (!stored) {
+    if (!stored)
+    {
         return NULL;
     }
     GtkWidget *label = GTK_WIDGET(stored);
-    if (!GTK_IS_LABEL(label)) {
+    if (!GTK_IS_LABEL(label))
+    {
         return NULL;
     }
     return label;
 }
 
-static void set_label(GtkWidget *container, const char *key, const char *value) {
+static void set_label(GtkWidget *container, const char *key, const char *value)
+{
     GtkWidget *label = lookup_label(container, key);
-    if (!label) {
+    if (!label)
+    {
         return;
     }
     gtk_label_set_text(GTK_LABEL(label), value ? value : "--");
 }
 
-static void set_label_fmt(GtkWidget *container, const char *key, const char *fmt, ...) {
+static void set_label_fmt(GtkWidget *container, const char *key, const char *fmt, ...)
+{
     GtkWidget *label = lookup_label(container, key);
-    if (!label || !fmt) {
+    if (!label || !fmt)
+    {
         return;
     }
     char buffer[128];
@@ -51,24 +114,35 @@ static void set_label_fmt(GtkWidget *container, const char *key, const char *fmt
     gtk_label_set_text(GTK_LABEL(label), buffer);
 }
 
-static const char *algorithm_name(AlgorithmType type) {
-    switch (type) {
-        case ALG_OPT: return "OPT";
-        case ALG_FIFO: return "FIFO";
-        case ALG_SC: return "Second Chance";
-        case ALG_MRU: return "MRU";
-        case ALG_RND: return "Random";
-        default: return "Unknown";
+static const char *algorithm_name(AlgorithmType type)
+{
+    switch (type)
+    {
+    case ALG_OPT:
+        return "OPT";
+    case ALG_FIFO:
+        return "FIFO";
+    case ALG_SC:
+        return "Second Chance";
+    case ALG_MRU:
+        return "MRU";
+    case ALG_RND:
+        return "Random";
+    default:
+        return "Unknown";
     }
 }
 
 // Actualiza las etiquetas del contenedor con métricas actuales del simulador.
-void update_stats_labels(GtkWidget *container, const Simulator *sim) {
-    if (!container) {
+void update_stats_labels(GtkWidget *container, const Simulator *sim)
+{
+    if (!container)
+    {
         return;
     }
 
-    if (!sim) {
+    if (!sim)
+    {
         set_label(container, "stat::name", "--");
         set_label(container, "stat::algorithm", "--");
         set_label(container, "stat::clock", "0");

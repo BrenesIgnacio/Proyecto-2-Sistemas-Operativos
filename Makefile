@@ -9,7 +9,7 @@ TARGET = pager_sim
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LIBS)
+	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LIBS) -lm
 
 clean:
 	rm -f $(OBJS) $(TARGET)

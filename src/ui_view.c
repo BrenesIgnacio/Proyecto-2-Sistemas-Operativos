@@ -10,27 +10,27 @@
 
 #define DEFAULT_TICK_MS 40
 
-typedef struct {
+typedef struct
+{
     const char *label;
     const char *key;
 } StatRowDesc;
 
 static const StatRowDesc kStatRows[] = {
-    { "Simulator", "stat::name" },
-    { "Algorithm", "stat::algorithm" },
-    { "Clock", "stat::clock" },
-    { "Thrashing Time", "stat::thrashing" },
-    { "Pages in Swap", "stat::swap" },
-    { "Instructions", "stat::total_instr" },
-    { "Page Faults", "stat::faults" },
-    { "Page Hits", "stat::hits" },
-    { "Pages Created", "stat::pages_created" },
-    { "Pages Evicted", "stat::evicted" },
-    { "Ptr Allocations", "stat::ptr_alloc" },
-    { "Ptr Deletions", "stat::ptr_delete" },
-    { "Bytes Requested", "stat::bytes" },
-    { "Internal Fragmentation", "stat::fragment" }
-};
+    {"Simulator", "stat::name"},
+    {"Algorithm", "stat::algorithm"},
+    {"Clock", "stat::clock"},
+    {"Thrashing Time", "stat::thrashing"},
+    {"Pages in Swap", "stat::swap"},
+    {"Instructions", "stat::total_instr"},
+    {"Page Faults", "stat::faults"},
+    {"Page Hits", "stat::hits"},
+    {"Pages Created", "stat::pages_created"},
+    {"Pages Evicted", "stat::evicted"},
+    {"Ptr Allocations", "stat::ptr_alloc"},
+    {"Ptr Deletions", "stat::ptr_delete"},
+    {"Bytes Requested", "stat::bytes"},
+    {"Internal Fragmentation", "stat::fragment"}};
 
 static GtkWidget *create_header_bar(void);
 static GtkWidget *create_stats_grid(void);
@@ -53,8 +53,14 @@ static AlgorithmType get_selected_algorithm(const AppContext *app);
 static gboolean ensure_manager_config(AppContext *app, AlgorithmType alg, gboolean reset_position);
 static void update_status_progress(AppContext *app, const char *prefix, size_t current, size_t total);
 
+void on_load_instructions_clicked(GtkButton *button, gpointer user_data);
+void on_save_instructions_clicked(GtkButton *button, gpointer user_data);
+void on_generate_instructions_clicked(GtkButton *button, gpointer user_data);
+void on_start_simulation_clicked(GtkButton *button, gpointer user_data);
+
 // Construye la barra superior con título y subtítulo.
-static GtkWidget *create_header_bar(void) {
+static GtkWidget *create_header_bar(void)
+{
     GtkWidget *header = gtk_header_bar_new();
     gtk_header_bar_set_title(GTK_HEADER_BAR(header), "Paging Simulator");
     gtk_header_bar_set_subtitle(GTK_HEADER_BAR(header), "Comparación OPT vs algoritmo elegido");
@@ -63,12 +69,14 @@ static GtkWidget *create_header_bar(void) {
 }
 
 // Genera una grilla de métricas y registra los labels de valores en los data keys.
-static GtkWidget *create_stats_grid(void) {
+static GtkWidget *create_stats_grid(void)
+{
     GtkWidget *grid = gtk_grid_new();
     gtk_grid_set_row_spacing(GTK_GRID(grid), 4);
     gtk_grid_set_column_spacing(GTK_GRID(grid), 12);
 
-    for (guint i = 0; i < G_N_ELEMENTS(kStatRows); ++i) {
+    for (guint i = 0; i < G_N_ELEMENTS(kStatRows); ++i)
+    {
         GtkWidget *label = gtk_label_new(kStatRows[i].label);
         gtk_widget_set_halign(label, GTK_ALIGN_START);
         gtk_grid_attach(GTK_GRID(grid), label, 0, (gint)i, 1, 1);
@@ -84,7 +92,8 @@ static GtkWidget *create_stats_grid(void) {
 }
 
 // Crea un frame con la grilla de métricas y lo devuelve.
-static GtkWidget *create_stats_frame(const char *title, GtkWidget **grid_out) {
+static GtkWidget *create_stats_frame(const char *title, GtkWidget **grid_out)
+{
     GtkWidget *frame = gtk_frame_new(title);
     gtk_container_set_border_width(GTK_CONTAINER(frame), 8);
     gtk_widget_set_hexpand(frame, TRUE);
@@ -93,18 +102,22 @@ static GtkWidget *create_stats_frame(const char *title, GtkWidget **grid_out) {
     GtkWidget *grid = create_stats_grid();
     gtk_container_add(GTK_CONTAINER(frame), grid);
 
-    if (grid_out) {
+    if (grid_out)
+    {
         *grid_out = grid;
     }
     return frame;
 }
 
-static void update_status(AppContext *app, const char *fmt, ...) {
-    if (!app || !GTK_IS_LABEL(app->status_label)) {
+static void update_status(AppContext *app, const char *fmt, ...)
+{
+    if (!app || !GTK_IS_LABEL(app->status_label))
+    {
         return;
     }
 
-    if (!fmt) {
+    if (!fmt)
+    {
         gtk_label_set_text(GTK_LABEL(app->status_label), "Idle");
         return;
     }
@@ -118,39 +131,51 @@ static void update_status(AppContext *app, const char *fmt, ...) {
     gtk_label_set_text(GTK_LABEL(app->status_label), buffer);
 }
 
-static void stop_simulation_timer(AppContext *app) {
-    if (!app) {
+static void stop_simulation_timer(AppContext *app)
+{
+    if (!app)
+    {
         return;
     }
-    if (app->tick_source) {
+    if (app->tick_source)
+    {
         g_source_remove(app->tick_source);
         app->tick_source = 0;
     }
 }
 
-static void refresh_stats(AppContext *app) {
-    if (!app) {
+static void refresh_stats(AppContext *app)
+{
+    if (!app)
+    {
         return;
     }
     g_idle_add(refresh_stats_idle, app);
 }
 
-static gboolean refresh_stats_idle(gpointer user_data) {
+static gboolean refresh_stats_idle(gpointer user_data)
+{
     AppContext *app = user_data;
-    if (!app) {
+    if (!app)
+    {
         return G_SOURCE_REMOVE;
     }
-    if (app->opt_stats_box) {
+    if (app->opt_stats_box)
+    {
         update_stats_labels(app->opt_stats_box, app->manager.sim_opt);
     }
-    if (app->user_stats_box) {
+    if (app->user_stats_box)
+    {
         update_stats_labels(app->user_stats_box, app->manager.sim_user);
     }
+    gtk_widget_queue_draw(app->root_box);
     return G_SOURCE_REMOVE;
 }
 
-static void update_controls(AppContext *app) {
-    if (!app) {
+static void update_controls(AppContext *app)
+{
+    if (!app)
+    {
         return;
     }
 
@@ -158,132 +183,155 @@ static void update_controls(AppContext *app) {
     gboolean finished = (app->manager.instr_count > 0 &&
                          app->manager.current_index >= app->manager.instr_count);
 
-    if (app->start_button) {
+    if (app->start_button)
+    {
         gboolean allow_start = (app->run_state != RUN_STATE_RUNNING) && has_workload;
         gtk_widget_set_sensitive(app->start_button, allow_start);
     }
 
-    if (app->pause_button) {
+    if (app->pause_button)
+    {
         gboolean can_pause = (app->run_state == RUN_STATE_RUNNING);
         gboolean can_resume = (app->run_state == RUN_STATE_PAUSED || app->run_state == RUN_STATE_STEP) && !finished;
         gtk_widget_set_sensitive(app->pause_button, can_pause || can_resume);
-        if (GTK_IS_BUTTON(app->pause_button)) {
+        if (GTK_IS_BUTTON(app->pause_button))
+        {
             const char *label = "Pausar";
-            if (app->run_state == RUN_STATE_PAUSED || app->run_state == RUN_STATE_STEP) {
+            if (app->run_state == RUN_STATE_PAUSED || app->run_state == RUN_STATE_STEP)
+            {
                 label = "Continuar";
             }
             gtk_button_set_label(GTK_BUTTON(app->pause_button), label);
         }
     }
 
-    if (app->step_button) {
+    if (app->step_button)
+    {
         gboolean can_step = has_workload && !finished && app->run_state != RUN_STATE_RUNNING;
         gtk_widget_set_sensitive(app->step_button, can_step);
     }
 
-    if (app->generate_button) {
+    if (app->generate_button)
+    {
         gtk_widget_set_sensitive(app->generate_button, app->run_state != RUN_STATE_RUNNING);
     }
 
-    if (app->algorithm_selector) {
+    if (app->algorithm_selector)
+    {
         gtk_widget_set_sensitive(app->algorithm_selector, app->run_state == RUN_STATE_IDLE);
     }
 
-    if (app->reset_button) {
+    if (app->reset_button)
+    {
         gtk_widget_set_sensitive(app->reset_button, has_workload || app->manager.sim_opt != NULL);
     }
 }
 
-static void set_run_state(AppContext *app, RunState state) {
-    if (!app) {
+static void set_run_state(AppContext *app, RunState state)
+{
+    if (!app)
+    {
         return;
     }
     app->run_state = state;
     update_controls(app);
 }
 
-static void on_pause_clicked(GtkButton *button, gpointer user_data) {
+static void on_pause_clicked(GtkButton *button, gpointer user_data)
+{
     (void)button;
     AppContext *app = user_data;
-    if (!app) {
+    if (!app)
+    {
         return;
     }
 
     size_t current = app->manager.current_index;
     size_t total = app->manager.instr_count;
 
-    switch (app->run_state) {
-        case RUN_STATE_RUNNING:
-            stop_simulation_timer(app);
+    switch (app->run_state)
+    {
+    case RUN_STATE_RUNNING:
+        stop_simulation_timer(app);
+        app->manager.running = 0;
+        set_run_state(app, RUN_STATE_PAUSED);
+        refresh_stats(app);
+        update_status_progress(app, "Pausada.", current, total ? total : 0);
+        break;
+    case RUN_STATE_PAUSED:
+    case RUN_STATE_STEP:
+        if (total == 0 || current >= total)
+        {
+            update_status_progress(app, "Simulación completada.", total, total);
+            set_run_state(app, RUN_STATE_IDLE);
+            return;
+        }
+        app->manager.running = 1;
+        set_run_state(app, RUN_STATE_RUNNING);
+        update_status_progress(app, "En ejecución...", current, total);
+        app->tick_source = g_timeout_add(DEFAULT_TICK_MS, tick_simulation, app);
+        if (!app->tick_source)
+        {
             app->manager.running = 0;
             set_run_state(app, RUN_STATE_PAUSED);
-            refresh_stats(app);
-            update_status_progress(app, "Pausada.", current, total ? total : 0);
-            break;
-        case RUN_STATE_PAUSED:
-        case RUN_STATE_STEP:
-            if (total == 0 || current >= total) {
-                update_status_progress(app, "Simulación completada.", total, total);
-                set_run_state(app, RUN_STATE_IDLE);
-                return;
-            }
-            app->manager.running = 1;
-            set_run_state(app, RUN_STATE_RUNNING);
-            update_status_progress(app, "En ejecución...", current, total);
-            app->tick_source = g_timeout_add(DEFAULT_TICK_MS, tick_simulation, app);
-            if (!app->tick_source) {
-                app->manager.running = 0;
-                set_run_state(app, RUN_STATE_PAUSED);
-                update_status(app, "Error al reanudar el temporizador GTK.");
-            }
-            break;
-        case RUN_STATE_IDLE:
-        default:
-            break;
+            update_status(app, "Error al reanudar el temporizador GTK.");
+        }
+        break;
+    case RUN_STATE_IDLE:
+    default:
+        break;
     }
 }
 
-static const char *algorithm_name(AlgorithmType type) {
-    switch (type) {
-        case ALG_OPT:
-            return "OPT";
-        case ALG_FIFO:
-            return "FIFO";
-        case ALG_SC:
-            return "Second Chance";
-        case ALG_MRU:
-            return "MRU";
-        case ALG_RND:
-            return "Random";
-        default:
-            return "Unknown";
+static const char *algorithm_name(AlgorithmType type)
+{
+    switch (type)
+    {
+    case ALG_OPT:
+        return "OPT";
+    case ALG_FIFO:
+        return "FIFO";
+    case ALG_SC:
+        return "Second Chance";
+    case ALG_MRU:
+        return "MRU";
+    case ALG_RND:
+        return "Random";
+    default:
+        return "Unknown";
     }
 }
 
-static AlgorithmType get_selected_algorithm(const AppContext *app) {
-    if (!app || !GTK_IS_COMBO_BOX(app->algorithm_selector)) {
+static AlgorithmType get_selected_algorithm(const AppContext *app)
+{
+    if (!app || !GTK_IS_COMBO_BOX(app->algorithm_selector))
+    {
         return ALG_FIFO;
     }
     const char *id = gtk_combo_box_get_active_id(GTK_COMBO_BOX(app->algorithm_selector));
-    if (!id) {
+    if (!id)
+    {
         return ALG_FIFO;
     }
     char *end = NULL;
     long value = strtol(id, &end, 10);
     AlgorithmType alg = (AlgorithmType)value;
-    switch (alg) {
-        case ALG_FIFO:
-        case ALG_SC:
-        case ALG_MRU:
-        case ALG_RND:
-            return alg;
-        default:
-            return ALG_FIFO;
+    switch (alg)
+    {
+    case ALG_FIFO:
+    case ALG_SC:
+    case ALG_MRU:
+    case ALG_RND:
+        return alg;
+    default:
+        return ALG_FIFO;
     }
 }
 
-static void update_status_progress(AppContext *app, const char *prefix, size_t current, size_t total) {
-    if (!app) {
+static void update_status_progress(AppContext *app, const char *prefix, size_t current, size_t total)
+{
+    if (!app)
+    {
         return;
     }
 
@@ -306,26 +354,35 @@ static void update_status_progress(AppContext *app, const char *prefix, size_t c
 }
 
 // Garantiza que el manager esté listo con el algoritmo y posición deseados.
-static gboolean ensure_manager_config(AppContext *app, AlgorithmType alg, gboolean reset_position) {
-    if (!app) {
+static gboolean ensure_manager_config(AppContext *app, AlgorithmType alg, gboolean reset_position)
+{
+    if (!app)
+    {
         return FALSE;
     }
-    if (!app->instructions || app->instruction_count == 0) {
+    if (!app->instructions || app->instruction_count == 0)
+    {
         update_status(app, "Primero genera una carga de trabajo.");
         return FALSE;
     }
 
     gboolean needs_reset = reset_position;
-    if (!app->manager.sim_opt || !app->manager.sim_user) {
+    if (!app->manager.sim_opt || !app->manager.sim_user)
+    {
         needs_reset = TRUE;
-    } else if (app->manager.instructions != app->instructions ||
-               app->manager.instr_count != app->instruction_count) {
+    }
+    else if (app->manager.instructions != app->instructions ||
+             app->manager.instr_count != app->instruction_count)
+    {
         needs_reset = TRUE;
-    } else if (app->manager.user_algorithm != alg) {
+    }
+    else if (app->manager.user_algorithm != alg)
+    {
         needs_reset = TRUE;
     }
 
-    if (needs_reset) {
+    if (needs_reset)
+    {
         sim_manager_free(&app->manager);
         sim_manager_init(&app->manager, app->instructions, app->instruction_count, alg);
         app->manager.running = 0;
@@ -336,18 +393,22 @@ static gboolean ensure_manager_config(AppContext *app, AlgorithmType alg, gboole
     return TRUE;
 }
 
-static gboolean tick_simulation(gpointer user_data) {
+static gboolean tick_simulation(gpointer user_data)
+{
     AppContext *app = user_data;
-    if (!app) {
+    if (!app)
+    {
         return G_SOURCE_REMOVE;
     }
 
-    if (app->run_state != RUN_STATE_RUNNING || !app->manager.running) {
+    if (app->run_state != RUN_STATE_RUNNING || !app->manager.running)
+    {
         app->tick_source = 0;
         return G_SOURCE_REMOVE;
     }
 
-    if (app->manager.current_index >= app->manager.instr_count) {
+    if (app->manager.current_index >= app->manager.instr_count)
+    {
         app->manager.running = 0;
         app->tick_source = 0;
         set_run_state(app, RUN_STATE_IDLE);
@@ -362,7 +423,8 @@ static gboolean tick_simulation(gpointer user_data) {
     size_t current = app->manager.current_index;
     size_t total = app->manager.instr_count;
 
-    if (current >= total) {
+    if (current >= total)
+    {
         app->manager.running = 0;
         app->tick_source = 0;
         set_run_state(app, RUN_STATE_IDLE);
@@ -374,10 +436,12 @@ static gboolean tick_simulation(gpointer user_data) {
     return G_SOURCE_CONTINUE;
 }
 
-static void on_generate_clicked(GtkButton *button, gpointer user_data) {
+static void on_generate_clicked(GtkButton *button, gpointer user_data)
+{
     (void)button;
     AppContext *app = user_data;
-    if (!app) {
+    if (!app)
+    {
         return;
     }
 
@@ -390,12 +454,10 @@ static void on_generate_clicked(GtkButton *button, gpointer user_data) {
     app->instructions = NULL;
     app->instruction_count = 0;
 
-    Config cfg;
-    config_load_defaults(&cfg);
-
     size_t count = 0;
-    Instruction *list = generate_instructions(cfg.process_count, cfg.op_count, (unsigned int)cfg.seed, &count);
-    if (!list || count == 0) {
+    Instruction *list = generate_instructions(app->process_count, app->operation_count, app->seed, &count);
+    if (!list || count == 0)
+    {
         update_status(app, "No se pudo generar la carga de trabajo.");
         refresh_stats(app);
         set_run_state(app, RUN_STATE_IDLE);
@@ -405,25 +467,29 @@ static void on_generate_clicked(GtkButton *button, gpointer user_data) {
     app->instructions = list;
     app->instruction_count = count;
 
-    update_status(app, "Carga generada: %zu instrucciones (seed %u).", count, cfg.seed);
+    update_status(app, "Carga generada: %zu instrucciones (seed %u).", count, app->seed);
     refresh_stats(app);
     set_run_state(app, RUN_STATE_IDLE);
 }
 
-static void on_start_clicked(GtkButton *button, gpointer user_data) {
+static void on_start_clicked(GtkButton *button, gpointer user_data)
+{
     (void)button;
     AppContext *app = user_data;
-    if (!app) {
+    if (!app)
+    {
         return;
     }
 
     stop_simulation_timer(app);
 
     AlgorithmType alg = get_selected_algorithm(app);
-    if (!ensure_manager_config(app, alg, TRUE)) {
+    if (!ensure_manager_config(app, alg, TRUE))
+    {
         return;
     }
-    if (app->manager.instr_count == 0) {
+    if (app->manager.instr_count == 0)
+    {
         update_status(app, "No hay instrucciones para simular.");
         return;
     }
@@ -434,20 +500,24 @@ static void on_start_clicked(GtkButton *button, gpointer user_data) {
 
     update_status_progress(app, "En ejecución...", 0, app->manager.instr_count);
     app->tick_source = g_timeout_add(DEFAULT_TICK_MS, tick_simulation, app);
-    if (!app->tick_source) {
+    if (!app->tick_source)
+    {
         app->manager.running = 0;
         set_run_state(app, RUN_STATE_IDLE);
         update_status(app, "Error al iniciar el temporizador GTK.");
     }
 }
 
-static void on_step_clicked(GtkButton *button, gpointer user_data) {
+static void on_step_clicked(GtkButton *button, gpointer user_data)
+{
     (void)button;
     AppContext *app = user_data;
-    if (!app) {
+    if (!app)
+    {
         return;
     }
-    if (app->manager.running) {
+    if (app->manager.running)
+    {
         return;
     }
 
@@ -455,16 +525,19 @@ static void on_step_clicked(GtkButton *button, gpointer user_data) {
     app->manager.running = 0;
 
     AlgorithmType alg = get_selected_algorithm(app);
-    if (!ensure_manager_config(app, alg, FALSE)) {
+    if (!ensure_manager_config(app, alg, FALSE))
+    {
         set_run_state(app, RUN_STATE_IDLE);
         return;
     }
-    if (app->manager.instr_count == 0) {
+    if (app->manager.instr_count == 0)
+    {
         update_status(app, "No hay instrucciones para simular.");
         set_run_state(app, RUN_STATE_IDLE);
         return;
     }
-    if (app->manager.current_index >= app->manager.instr_count) {
+    if (app->manager.current_index >= app->manager.instr_count)
+    {
         update_status_progress(app, "Simulación completada.", app->manager.instr_count, app->manager.instr_count);
         set_run_state(app, RUN_STATE_IDLE);
         return;
@@ -475,19 +548,24 @@ static void on_step_clicked(GtkButton *button, gpointer user_data) {
 
     size_t current = app->manager.current_index;
     size_t total = app->manager.instr_count;
-    if (current >= total) {
+    if (current >= total)
+    {
         set_run_state(app, RUN_STATE_IDLE);
         update_status_progress(app, "Simulación completada.", total, total);
-    } else {
+    }
+    else
+    {
         set_run_state(app, RUN_STATE_STEP);
         update_status_progress(app, "Paso manual:", current, total);
     }
 }
 
-static void on_reset_clicked(GtkButton *button, gpointer user_data) {
+static void on_reset_clicked(GtkButton *button, gpointer user_data)
+{
     (void)button;
     AppContext *app = user_data;
-    if (!app) {
+    if (!app)
+    {
         return;
     }
 
@@ -499,19 +577,25 @@ static void on_reset_clicked(GtkButton *button, gpointer user_data) {
     update_status(app, "Simulación reiniciada.");
 }
 
-static void on_main_window_destroy(GtkWidget *widget, gpointer user_data) {
+static void on_main_window_destroy(GtkWidget *widget, gpointer user_data)
+{
     (void)widget;
     AppContext *app = user_data;
-    if (app) {
+    if (app)
+    {
         stop_simulation_timer(app);
         app->manager.running = 0;
+        app->main_window = NULL;
+        app->root_box = NULL;
     }
     gtk_main_quit();
 }
 
 // Construye la ventana principal con controles y ganchos básicos.
-void ui_view_build_main_window(AppContext *app) {
-    if (!app) {
+void ui_view_build_main_window(AppContext *app)
+{
+    if (!app)
+    {
         return;
     }
 
@@ -578,17 +662,292 @@ void ui_view_build_main_window(AppContext *app) {
 }
 
 // Prepara los paneles de métricas de cada simulador.
-void ui_view_build_simulation_window(AppContext *app) {
-    if (!app || !app->root_box) {
+void ui_view_build_simulation_window(AppContext *app)
+{
+    if (!app || !app->root_box)
         return;
-    }
 
     GtkWidget *panels = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
     gtk_box_pack_start(GTK_BOX(app->root_box), panels, TRUE, TRUE, 0);
 
-    GtkWidget *opt_frame = create_stats_frame("OPT (Base)", &app->opt_stats_box);
-    GtkWidget *user_frame = create_stats_frame("Algoritmo Usuario", &app->user_stats_box);
+    // Frame OPT
+    GtkWidget *opt_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+    GtkWidget *opt_canvas = gtk_drawing_area_new();
+    gtk_widget_set_size_request(opt_canvas, 400, 400);
+    gtk_box_pack_start(GTK_BOX(opt_vbox), opt_canvas, TRUE, TRUE, 0);
 
-    gtk_box_pack_start(GTK_BOX(panels), opt_frame, TRUE, TRUE, 0);
-    gtk_box_pack_start(GTK_BOX(panels), user_frame, TRUE, TRUE, 0);
+    GtkWidget *opt_frame = create_stats_frame("OPT (Base)", &app->opt_stats_box);
+    gtk_box_pack_start(GTK_BOX(opt_vbox), opt_frame, FALSE, FALSE, 0);
+
+    gtk_box_pack_start(GTK_BOX(panels), opt_vbox, TRUE, TRUE, 0);
+
+    // Frame Algoritmo usuario
+    GtkWidget *user_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+    GtkWidget *user_canvas = gtk_drawing_area_new();
+    gtk_widget_set_size_request(user_canvas, 400, 400);
+    gtk_box_pack_start(GTK_BOX(user_vbox), user_canvas, TRUE, TRUE, 0);
+
+    GtkWidget *user_frame = create_stats_frame("Algoritmo Usuario", &app->user_stats_box);
+    gtk_box_pack_start(GTK_BOX(user_vbox), user_frame, FALSE, FALSE, 0);
+
+    gtk_box_pack_start(GTK_BOX(panels), user_vbox, TRUE, TRUE, 0);
+
+    // Conecta señales de dibujo
+    g_signal_connect(opt_canvas, "draw", G_CALLBACK(draw_ram_cb), app->manager.sim_opt);
+    g_signal_connect(user_canvas, "draw", G_CALLBACK(draw_ram_cb), app->manager.sim_user);
+}
+
+void ui_view_build_setup_window(AppContext *app)
+{
+    if (!app)
+        return;
+
+    GtkWidget *dialog = gtk_dialog_new_with_buttons(
+        "Configuración de simulación",
+        NULL,
+        GTK_DIALOG_MODAL,
+        "_Cerrar", GTK_RESPONSE_CLOSE,
+        NULL);
+
+    GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    gtk_container_set_border_width(GTK_CONTAINER(content), 10);
+    GtkWidget *grid = gtk_grid_new();
+    gtk_grid_set_row_spacing(GTK_GRID(grid), 6);
+    gtk_grid_set_column_spacing(GTK_GRID(grid), 10);
+    gtk_container_add(GTK_CONTAINER(content), grid);
+
+    // Semilla
+    GtkWidget *label_seed = gtk_label_new("Semilla (seed):");
+    gtk_widget_set_halign(label_seed, GTK_ALIGN_START);
+    gtk_grid_attach(GTK_GRID(grid), label_seed, 0, 0, 1, 1);
+
+    GtkWidget *entry_seed = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(entry_seed), "1234 (por defecto)");
+    gtk_grid_attach(GTK_GRID(grid), entry_seed, 1, 0, 1, 1);
+    g_object_set_data(G_OBJECT(dialog), "entry_seed", entry_seed);
+
+    // Spin para procesos (P)
+    GtkWidget *label_p = gtk_label_new("Procesos (P):");
+    gtk_widget_set_halign(label_p, GTK_ALIGN_START);
+    gtk_grid_attach(GTK_GRID(grid), label_p, 0, 1, 1, 1);
+
+    GtkWidget *spin_p = gtk_spin_button_new_with_range(1, 100, 1);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(spin_p), 10);
+    gtk_grid_attach(GTK_GRID(grid), spin_p, 1, 1, 1, 1);
+    g_object_set_data(G_OBJECT(dialog), "spin_p", spin_p);
+
+    // Spin para operaciones (N)
+    GtkWidget *label_n = gtk_label_new("Operaciones (N):");
+    gtk_widget_set_halign(label_n, GTK_ALIGN_START);
+    gtk_grid_attach(GTK_GRID(grid), label_n, 0, 2, 1, 1);
+
+    GtkWidget *spin_n = gtk_spin_button_new_with_range(10, 10000, 10);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(spin_n), 500);
+    gtk_grid_attach(GTK_GRID(grid), spin_n, 1, 2, 1, 1);
+    g_object_set_data(G_OBJECT(dialog), "spin_n", spin_n);
+
+    // Botones
+    GtkWidget *btn_generate = gtk_button_new_with_label("Generar instrucciones");
+    gtk_grid_attach(GTK_GRID(grid), btn_generate, 0, 3, 2, 1);
+    g_signal_connect(btn_generate, "clicked", G_CALLBACK(on_generate_instructions_clicked), dialog);
+
+    GtkWidget *btn_load = gtk_button_new_with_label("Cargar archivo");
+    gtk_grid_attach(GTK_GRID(grid), btn_load, 0, 4, 1, 1);
+    g_signal_connect(btn_load, "clicked", G_CALLBACK(on_load_instructions_clicked), dialog);
+
+    GtkWidget *btn_save = gtk_button_new_with_label("Guardar archivo");
+    gtk_grid_attach(GTK_GRID(grid), btn_save, 1, 4, 1, 1);
+    gtk_widget_set_sensitive(btn_save, FALSE);
+    g_signal_connect(btn_save, "clicked", G_CALLBACK(on_save_instructions_clicked), dialog);
+
+    GtkWidget *btn_start = gtk_button_new_with_label("Iniciar simulación");
+    gtk_grid_attach(GTK_GRID(grid), btn_start, 0, 5, 2, 1);
+    g_signal_connect(btn_start, "clicked", G_CALLBACK(on_start_simulation_clicked), dialog);
+
+    g_object_set_data(G_OBJECT(dialog), "btn_generate", btn_generate);
+    g_object_set_data(G_OBJECT(dialog), "btn_load", btn_load);
+    g_object_set_data(G_OBJECT(dialog), "btn_save", btn_save);
+
+    g_object_set_data(G_OBJECT(dialog), "app", app);
+
+    gtk_widget_show_all(dialog);
+    gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
+}
+
+void on_generate_instructions_clicked(GtkButton *button, gpointer user_data)
+{
+    (void)button;
+    GtkWidget *dialog = GTK_WIDGET(user_data);
+    AppContext *app = g_object_get_data(G_OBJECT(dialog), "app");
+
+    GtkWidget *entry_seed = g_object_get_data(G_OBJECT(dialog), "entry_seed");
+    GtkWidget *spin_p = g_object_get_data(G_OBJECT(dialog), "spin_p");
+    GtkWidget *spin_n = g_object_get_data(G_OBJECT(dialog), "spin_n");
+
+    unsigned int seed = 1234;
+    const char *seed_text = gtk_entry_get_text(GTK_ENTRY(entry_seed));
+    if (seed_text && *seed_text)
+        seed = (unsigned int)atoi(seed_text);
+
+    int P = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spin_p));
+    int N = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spin_n));
+
+    size_t count = 0;
+    Instruction *list = generate_instructions(P, N, seed, &count);
+    if (!list || count == 0)
+    {
+        GtkWidget *err = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR,
+                                                GTK_BUTTONS_OK, "Error al generar las instrucciones.");
+        gtk_dialog_run(GTK_DIALOG(err));
+        gtk_widget_destroy(err);
+        return;
+    }
+    app->seed = seed;
+    app->process_count = P;
+    app->operation_count = N;
+
+    free(app->instructions);
+    app->instructions = list;
+    app->instruction_count = count;
+
+    GtkWidget *msg = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_INFO,
+                                            GTK_BUTTONS_OK,
+                                            "Se generaron %zu instrucciones con semilla %u.", count, seed);
+    gtk_dialog_run(GTK_DIALOG(msg));
+    gtk_widget_destroy(msg);
+    GtkWidget *btn_save = g_object_get_data(G_OBJECT(dialog), "btn_save");
+    if (btn_save)
+        gtk_widget_set_sensitive(btn_save, TRUE);
+}
+
+void on_save_instructions_clicked(GtkButton *button, gpointer user_data)
+{
+    (void)button;
+
+    GtkWidget *dialog = GTK_WIDGET(user_data);
+    AppContext *app = g_object_get_data(G_OBJECT(dialog), "app");
+
+    GtkWidget *chooser = gtk_file_chooser_dialog_new("Guardar instrucciones",
+                                                     NULL,
+                                                     GTK_FILE_CHOOSER_ACTION_SAVE,
+                                                     "_Guardar", GTK_RESPONSE_ACCEPT,
+                                                     "_Cancelar", GTK_RESPONSE_CANCEL,
+                                                     NULL);
+
+    gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(chooser), TRUE);
+    gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(chooser), "instrucciones.txt");
+
+    if (gtk_dialog_run(GTK_DIALOG(chooser)) == GTK_RESPONSE_ACCEPT)
+    {
+        char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(chooser));
+        save_instructions_to_file(filename, app->instructions, app->instruction_count);
+        g_free(filename);
+    }
+
+    gtk_widget_destroy(chooser);
+}
+
+static int calculate_process_count(const Instruction *list, size_t count)
+{
+    if (!list || count == 0)
+        return 0;
+
+    sim_pid_t max_pid = 0;
+    for (size_t i = 0; i < count; ++i)
+    {
+        if (list[i].pid > max_pid)
+            max_pid = list[i].pid;
+    }
+    return (int)(max_pid > 0 ? max_pid : 1);
+}
+
+void on_load_instructions_clicked(GtkButton *button, gpointer user_data)
+{
+    (void)button;
+
+    GtkWidget *dialog = GTK_WIDGET(user_data);
+    AppContext *app = g_object_get_data(G_OBJECT(dialog), "app");
+
+    GtkWidget *chooser = gtk_file_chooser_dialog_new("Cargar instrucciones",
+                                                     NULL,
+                                                     GTK_FILE_CHOOSER_ACTION_OPEN,
+                                                     "_Abrir", GTK_RESPONSE_ACCEPT,
+                                                     "_Cancelar", GTK_RESPONSE_CANCEL,
+                                                     NULL);
+
+    GtkFileFilter *filter = gtk_file_filter_new();
+    gtk_file_filter_add_pattern(filter, "*.txt");
+    gtk_file_filter_set_name(filter, "Archivos de texto (*.txt)");
+    gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(chooser), filter);
+
+    Instruction *list = NULL;
+    size_t count = 0;
+
+    if (gtk_dialog_run(GTK_DIALOG(chooser)) == GTK_RESPONSE_ACCEPT)
+    {
+        char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(chooser));
+        list = parse_instructions_from_file(filename, &count);
+        g_free(filename);
+    }
+
+    gtk_widget_destroy(chooser);
+
+    if (!list || count == 0)
+    {
+        GtkWidget *err = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR,
+                                                GTK_BUTTONS_OK, "Error al leer el archivo o está vacío.");
+        gtk_dialog_run(GTK_DIALOG(err));
+        gtk_widget_destroy(err);
+        return;
+    }
+
+    free(app->instructions);
+    app->instructions = list;
+    app->instruction_count = count;
+
+    app->process_count = calculate_process_count(list, count);
+    app->operation_count = (int)count;
+    GtkWidget *entry_seed = g_object_get_data(G_OBJECT(dialog), "entry_seed");
+    unsigned int seed = 1234; // valor por defecto
+    if (entry_seed)
+    {
+        const char *seed_text = gtk_entry_get_text(GTK_ENTRY(entry_seed));
+        if (seed_text && *seed_text)
+            seed = (unsigned int)atoi(seed_text);
+    }
+    app->seed = seed;
+    // Reinicia el simulador con la nueva carga
+    sim_manager_free(&app->manager);
+    sim_manager_init(&app->manager, app->instructions, app->instruction_count, app->manager.user_algorithm);
+    app->manager.running = 0;
+    refresh_stats(app);
+    set_run_state(app, RUN_STATE_IDLE);
+
+    GtkWidget *msg = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_INFO,
+                                            GTK_BUTTONS_OK,
+                                            "Se cargaron %zu instrucciones correctamente.", count);
+    gtk_dialog_run(GTK_DIALOG(msg));
+    gtk_widget_destroy(msg);
+}
+
+void on_start_simulation_clicked(GtkButton *button, gpointer user_data)
+{
+    (void)button;
+
+    GtkWidget *dialog = GTK_WIDGET(user_data);
+    AppContext *app = g_object_get_data(G_OBJECT(dialog), "app");
+    if (!app->instructions || app->instruction_count == 0)
+    {
+        GtkWidget *err = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR,
+                                                GTK_BUTTONS_OK,
+                                                "Primero debes generar o cargar instrucciones antes de iniciar la simulación.");
+        gtk_dialog_run(GTK_DIALOG(err));
+        gtk_widget_destroy(err);
+        return;
+    }
+    // Lanza la ventana principal
+    ui_view_build_main_window(app);
+    gtk_widget_show_all(app->main_window);
+    gtk_widget_destroy(dialog);
 }

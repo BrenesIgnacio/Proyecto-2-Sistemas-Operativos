@@ -9,5 +9,10 @@ typedef struct AppContext AppContext;
 void ui_view_build_main_window(AppContext *app);
 // Prepara la ventana que mostrará el estado de la simulación.
 void ui_view_build_simulation_window(AppContext *app);
+void on_start_simulation_clicked(GtkButton *button, gpointer user_data);
+void on_load_instructions_clicked(GtkButton *button, gpointer user_data);
+void on_save_instructions_clicked(GtkButton *button, gpointer user_data);
+void on_generate_instructions_clicked(GtkButton *button, gpointer user_data);
+void ui_view_build_setup_window(AppContext *app);
 
 #endif

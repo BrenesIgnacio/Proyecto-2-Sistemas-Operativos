@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "string.h": "c",
+        "visualization_draw.h": "c"
+    }
+}

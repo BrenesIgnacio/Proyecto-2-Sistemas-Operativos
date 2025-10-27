@@ -5,14 +5,16 @@
 #include "sim_manager.h"
 #include "instr_parser.h"
 
-typedef enum {
+typedef enum
+{
     RUN_STATE_IDLE = 0,
     RUN_STATE_RUNNING,
     RUN_STATE_PAUSED,
     RUN_STATE_STEP
 } RunState;
 
-typedef struct AppContext {
+typedef struct AppContext
+{
     GtkWidget *main_window;
     GtkWidget *root_box;
     GtkWidget *start_button;
@@ -29,6 +31,9 @@ typedef struct AppContext {
     size_t instruction_count;
     guint tick_source;
     RunState run_state;
+    unsigned int seed;
+    int process_count;
+    int operation_count;
 } AppContext;
 
 // Inicializa GTK y prepara la estructura principal de la aplicación.

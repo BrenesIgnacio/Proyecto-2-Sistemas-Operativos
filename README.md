@@ -28,6 +28,7 @@ Simulador interactivo de memoria y estrategias de paginación con interfaz gráf
 - **OPT (Óptimo)**: Es una implementacion del algoritmo de Belady usando colas de usos futuros precalculadas.
 - **FIFO**
 - **Segunda Oportunidad (Clock)**: Variante de FIFO con bit de referencia y puntero circular.
+- **LRU (Least Recently Used)**: Expulsa la página accedida más antiguamente.
 - **MRU (Most Recently Used)**: Expulsa la página accedida más recientemente.
 - **Aleatorio**
 
@@ -165,6 +166,12 @@ kill(2)
 - **Implementación**: Emplea las colas de usos futuros precalculadas por el `SimManager` durante el preprocesamiento.
 - **Ventaja**: Mínimo número teórico de page faults. Sirve como referencia para evaluar otros algoritmos.
 - **Limitación**: Requiere conocimiento futuro.
+
+### LRU (Least Recently Used)
+- **Descripción**: Expulsa la página que no ha sido accedida por el mayor período de tiempo (menos recientemente usada).
+- **Implementación**: Utiliza el campo `last_used` existente en cada página; recorre todos los marcos y selecciona la página con el timestamp más antiguo.
+- **Ventaja**: Explota la localidad temporal; buen rendimiento en la mayoría de patrones de acceso reales.
+- **Desventaja**: Requiere escaneo O(n) de todos los marcos para encontrar la víctima.
 
 ### Aleatorio (Random)
 - **Descripción**: Selecciona una página víctima al azar entre las que están en RAM.

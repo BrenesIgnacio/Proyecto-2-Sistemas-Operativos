@@ -267,6 +267,8 @@ static const char *algorithm_name(AlgorithmType type)
         return "FIFO";
     case ALG_SC:
         return "Second Chance";
+    case ALG_LRU:
+        return "LRU";
     case ALG_MRU:
         return "MRU";
     case ALG_RND:

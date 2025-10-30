@@ -7,7 +7,7 @@ Simulador interactivo de memoria y estrategias de paginación con interfaz gráf
 - **Simulación**: Se corren simultáneamente dos simuladores independientes (OPT y el algoritmo elegido) para comparación directa de rendimiento.
 - Simula un MMU simplificado con número fijo de marcos (`RAM_FRAMES = 100`) y tamaño de página (`PAGE_SIZE = 4096`).
 - Lleva control de procesos, asignaciones (punteros) y páginas; actualiza métricas como page faults, expulsiones y aciertos.
-- Varios algoritmos: **Algoritmo Óptimo (OPT)**, **FIFO**, **Segunda Oportunidad (Clock)**, **MRU** y **Aleatorio**.
+- Varios algoritmos: **Algoritmo Óptimo (OPT)**, **FIFO**, **Segunda Oportunidad (Clock)**, **LRU**, **MRU** y **Aleatorio**.
 - **GUI** con controles de reproducción (Iniciar, Pausar, Step, Reset), selector de algoritmo y visualización de estadísticas en tiempo real.
 - **Preprocesamiento**: Analiza todas las instrucciones antes de la simulación para construir el dataset de usos futuros (OPT) y optimizar la ejecución.
 
@@ -112,6 +112,7 @@ Makefile               # Compilación con gcc y GTK+ 3
 - `fifo_choose()`: Cola circular de páginas cargadas.
 - `sc_choose()`: Clock hand con segunda oportunidad.
 - `opt_choose()`: Busca la página con uso más lejano en el futuro.
+- `lru_choose()`: Expulsa la página con timestamp más antiguo.
 - `mru_choose()`: Expulsa la página con timestamp más reciente.
 - `rnd_choose()`: Selección aleatoria uniforme.
 

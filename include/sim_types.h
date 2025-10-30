@@ -61,6 +61,7 @@ typedef enum {
     ALG_OPT,
     ALG_FIFO,
     ALG_SC,
+    ALG_LRU,
     ALG_MRU,
     ALG_RND
 } AlgorithmType;

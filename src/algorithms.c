@@ -222,6 +222,27 @@ static sim_pageid_t mru_choose(Simulator *sim) {
 	return candidate;
 }
 
+// Devuelve la página menos recientemente usada para el algoritmo LRU.
+static sim_pageid_t lru_choose(Simulator *sim) {
+	sim_pageid_t candidate = 0;
+	sim_time_t best_time = UINT64_MAX;
+	for (int i = 0; i < RAM_FRAMES; ++i) {
+		Frame *frame = &sim->mmu.frames[i];
+		if (!frame->occupied) {
+			continue;
+		}
+		Page *page = get_page(sim, frame->page_id);
+		if (!page) {
+			continue;
+		}
+		if (candidate == 0 || page->last_used < best_time) {
+			candidate = page->id;
+			best_time = page->last_used;
+		}
+	}
+	return candidate;
+}
+
 // Elige una página víctima al azar entre los marcos ocupados.
 static sim_pageid_t rnd_choose(Simulator *sim) {
 	sim_pageid_t buffer[RAM_FRAMES];
@@ -362,6 +383,8 @@ sim_pageid_t choose_victim(Simulator *sim) {
 			return fifo_choose(sim, state);
 		case ALG_SC:
 			return sc_choose(sim, state);
+		case ALG_LRU:
+			return lru_choose(sim);
 		case ALG_MRU:
 			return mru_choose(sim);
 		case ALG_RND:

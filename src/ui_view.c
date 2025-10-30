@@ -354,6 +354,7 @@ static AlgorithmType get_selected_algorithm(const AppContext *app)
     {
     case ALG_FIFO:
     case ALG_SC:
+    case ALG_LRU:
     case ALG_MRU:
     case ALG_RND:
         return alg;
@@ -679,8 +680,9 @@ void ui_view_build_main_window(AppContext *app)
     app->algorithm_selector = gtk_combo_box_text_new();
     gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(app->algorithm_selector), "1", "FIFO");
     gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(app->algorithm_selector), "2", "Second Chance");
-    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(app->algorithm_selector), "3", "MRU");
-    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(app->algorithm_selector), "4", "Random");
+    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(app->algorithm_selector), "3", "LRU");
+    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(app->algorithm_selector), "4", "MRU");
+    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(app->algorithm_selector), "5", "Random");
     gtk_combo_box_set_active(GTK_COMBO_BOX(app->algorithm_selector), 0);
     gtk_box_pack_start(GTK_BOX(controls), app->algorithm_selector, FALSE, FALSE, 0);
 

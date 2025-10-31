@@ -105,12 +105,23 @@ void update_visual_stats(GtkWidget *container, const Simulator *sim)
 
     char buf[64];
 
-    double ram_kb = sim->mmu.page_count * (PAGE_SIZE / 1024.0);
-    double ram_total_kb = (RAM_FRAMES * PAGE_SIZE) / 1024.0;
-    double ram_percent = (ram_kb / ram_total_kb) * 100.0;
+    /* Contar frames ocupados (páginas realmente en RAM) */
+    size_t pages_in_ram = 0;
+    for (int i = 0; i < RAM_FRAMES; ++i)
+    {
+        const Frame *f = &sim->mmu.frames[i];
+        if (f->occupied)
+            ++pages_in_ram;
+    }
 
+    /* RAM usada = frames ocupadas * PAGE_SIZE */
+    double ram_kb = pages_in_ram * (PAGE_SIZE / 1024.0);
+    double ram_total_kb = (RAM_FRAMES * PAGE_SIZE) / 1024.0;
+    double ram_percent = (ram_total_kb > 0.0) ? (ram_kb / ram_total_kb) * 100.0 : 0.0;
+
+    /* vRAM: páginas en swap */
     double vram_kb = sim->total_pages_in_swap * (PAGE_SIZE / 1024.0);
-    double vram_percent = ram_total_kb > 0 ? (vram_kb / ram_total_kb) * 100.0 : 0.0;
+    double vram_percent = (ram_total_kb > 0.0) ? (vram_kb / ram_total_kb) * 100.0 : 0.0;
 
     double thrash_percent = (sim->clock > 0)
                                 ? ((double)sim->thrashing_time / sim->clock) * 100.0
@@ -128,7 +139,7 @@ void update_visual_stats(GtkWidget *container, const Simulator *sim)
     set_label_fmt(container, "stat::loaded", "%zu", sim->stats.page_hits);
     set_label_fmt(container, "stat::unloaded", "%zu", sim->stats.page_faults);
 
-    // thrashing en color si > 50%
+    /* thrashing en color si > 50% */
     GtkWidget *thr_label = lookup_label(container, "stat::thrashing");
     if (thr_label)
     {

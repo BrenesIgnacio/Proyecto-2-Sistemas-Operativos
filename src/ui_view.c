@@ -331,6 +331,8 @@ static const char *algorithm_name(AlgorithmType type)
         return "MRU";
     case ALG_RND:
         return "Random";
+    case ALG_LRU:
+        return "LRU";
     default:
         return "Unknown";
     }
@@ -727,12 +729,18 @@ void ui_view_build_simulation_window(AppContext *app)
     GtkWidget *sim_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
     gtk_box_pack_start(GTK_BOX(app->root_box), sim_box, TRUE, TRUE, 0);
 
+    GtkWidget *label_opt = gtk_label_new("Memoria RAM - OPT (Algoritmo Base)");
+    gtk_widget_set_halign(label_opt, GTK_ALIGN_START);
+    gtk_box_pack_start(GTK_BOX(sim_box), label_opt, FALSE, FALSE, 0);
     // Barra de RAM OPT
     GtkWidget *opt_bar = gtk_drawing_area_new();
     gtk_widget_set_size_request(opt_bar, -1, 32);
     gtk_box_pack_start(GTK_BOX(sim_box), opt_bar, FALSE, FALSE, 0);
     g_object_set_data(G_OBJECT(app->root_box), "opt_bar", opt_bar);
 
+    GtkWidget *label_user = gtk_label_new("Memoria RAM - Algoritmo seleccionado");
+    gtk_widget_set_halign(label_user, GTK_ALIGN_START);
+    gtk_box_pack_start(GTK_BOX(sim_box), label_user, FALSE, FALSE, 0);
     // Barra de RAM USER
     GtkWidget *user_bar = gtk_drawing_area_new();
     gtk_widget_set_size_request(user_bar, -1, 32);
@@ -749,6 +757,10 @@ void ui_view_build_simulation_window(AppContext *app)
     gtk_box_pack_start(GTK_BOX(tables_box), opt_table, TRUE, TRUE, 0);
     gtk_box_pack_start(GTK_BOX(tables_box), user_table, TRUE, TRUE, 0);
 
+    GtkWidget *info_label_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
+    gtk_box_pack_start(GTK_BOX(sim_box), info_label_box, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(info_label_box), gtk_label_new("Estadísticas OPT"), TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(info_label_box), gtk_label_new("Estadísticas Algoritmo seleccionado"), TRUE, TRUE, 0);
     // Paneles de estadísticas
     GtkWidget *panels = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
     gtk_box_pack_start(GTK_BOX(sim_box), panels, TRUE, TRUE, 0);
@@ -977,8 +989,7 @@ void on_load_instructions_clicked(GtkButton *button, gpointer user_data)
     app->instructions = list;
     app->instruction_count = count;
     app->process_count = calculate_process_count(list, count);
-    app->operation_count = (int)count;
-
+    app->operation_count = (int)((count > (size_t)app->process_count) ? (count - (size_t)app->process_count) : count);
     // Obtener seed del entry o valor por defecto
     GtkWidget *entry_seed = g_object_get_data(G_OBJECT(dialog), "entry_seed");
     unsigned int seed = 1234;
